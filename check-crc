@@ -26,12 +26,20 @@ def search_releases(base, ext, folder=None):
         queries.append(f"r:{folder}")
 
     lc = base.lower()
-    sample_variants = [
-        f"{lc}.sample{ext}",
-        f"{lc}-sample{ext}",
-        f"sample-{lc}{ext}",
-        f"sample.{lc}{ext}",
-    ]
+    if ext.lower() == ".iso":
+        sample_variants = [
+            f"{lc}.sample.m2ts",
+            f"{lc}-sample.m2ts",
+            f"sample-{lc}.m2ts",
+            f"sample.{lc}.m2ts",
+        ]
+    else:
+        sample_variants = [
+            f"{lc}.sample{ext}",
+            f"{lc}-sample{ext}",
+            f"sample-{lc}{ext}",
+            f"sample.{lc}{ext}",
+        ]
     queries.extend(f"store-real-filename:{v}" for v in sample_variants)
 
     for q in queries:
@@ -41,12 +49,17 @@ def search_releases(base, ext, folder=None):
             return releases
     return []
 
-def fetch_file_details(rel, name):
+def fetch_file_details(rel, name, base):
     data = fetch_json(f"https://api.srrdb.com/v1/details/{rel}")
-    for f in data.get('archived-files', []):
+    archived = data.get('archived-files', [])
+    for f in archived:
         fname = os.path.basename(f.get('name'))
         if fname.lower() == name.lower():
             return f
+    if len(archived) == 1:
+        rel_lc = rel.lower()
+        if rel_lc == name.lower() or rel_lc == base.lower():
+            return archived[0]
     return None
 
 def handle_match(path, name, original_name, rename=False):
@@ -68,16 +81,18 @@ def check_file(path, folder=None, rename=False):
     if not releases:
         return print("RELEASE NOT FOUND")
 
-    crc = crc32(path)
-    if not crc:
-        return print("ERR")
-
+    crc = None
     for release in dict.fromkeys(releases):
-        file_details = fetch_file_details(release, name)
+        file_details = fetch_file_details(release, name, base)
         if not file_details:
             continue
+        if crc is None:
+            crc = crc32(path)
+            if not crc:
+                return print("ERR")
         if crc == file_details.get('crc'):
-            return handle_match(path, name, file_details.get('name'), rename)
+            original_name = os.path.basename(file_details.get('name') or name)
+            return handle_match(path, name, original_name, rename)
         return print(f"MISMATCH (local: {crc}, original: {file_details.get('crc')})")
 
     print("RELEASE NOT FOUND")
