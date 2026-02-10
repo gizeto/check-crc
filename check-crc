@@ -81,11 +81,21 @@ def check_file(path, folder=None, rename=False):
     if not releases:
         return print("RELEASE NOT FOUND")
 
+    size = None
     crc = None
     for release in dict.fromkeys(releases):
         file_details = fetch_file_details(release, name, base)
         if not file_details:
             continue
+        expected_size = file_details.get('size')
+        if expected_size is not None:
+            if size is None:
+                try:
+                    size = os.path.getsize(path)
+                except Exception:
+                    return print("ERR")
+            if size != expected_size:
+                return print(f"MISMATCH (local size: {size}, original size: {expected_size})")
         if crc is None:
             crc = crc32(path)
             if not crc:
