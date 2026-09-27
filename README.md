@@ -26,3 +26,4 @@ check-crc <file-or-directory> [--rename]
 
 - Use a directory to check all non-sample files inside (skipping .nfo/.sfv/.srr/.nzb).
 - Add `--rename` to rename a matching file to the original release filename.
+- Trailing copy suffixes such as ` (1)` or ` (2)` before the extension are ignored when looking up files on srrDB.
